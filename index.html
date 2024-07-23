@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Database SPA</title>
+    <style>
+        /* Basic styling for the application */
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 10px 0;
+            text-align: center;
+        }
+
+        nav {
+            margin: 10px 0;
+        }
+
+        nav button {
+            margin: 0 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        main {
+            padding: 20px;
+            text-align: center;
+        }
+
+        #search-section {
+            margin-bottom: 20px;
+        }
+
+        #search-input {
+            padding: 10px;
+            font-size: 16px;
+            width: 60%;
+            margin-right: 10px;
+        }
+
+        #search-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .movie-item {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            width: 200px;
+            text-align: center;
+        }
+
+        .movie-item img {
+            width: 100%;
+            height: auto;
+        }
+
+        .movie-details {
+            text-align: left;
+            margin: 20px auto;
+            width: 80%;
+        }
+
+        .movie-details img {
+            float: left;
+            margin-right: 20px;
+        }
+
+        .movie-details h2 {
+            margin-top: 0;
+        }
+
+        #cast-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #cast-list li {
+            margin-bottom: 5px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // API Key
+        const apiKey = 'c308fed79563f78d7581b52b4dc8be3a';
+
+        $(document).ready(function() {
+            // Search Button
+            $('#search-button').on('click', function() {
+                const query = $('#search-input').val();
+                searchMovies(query);
+            });
+
+            // Home Button
+            $('#home-button').on('click', function() {
+                $('#results-section').empty();
+                $('#details-section').empty();
+            });
+
+            // Popular Button
+            $('#popular-button').on('click', function() {
+                fetchPopularMovies();
+            });
+        });
+
+        // Function to search movies based on query
+        function searchMovies(query) {
+            $.ajax({
+                url: `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}`,
+                method: 'GET',
+                success: function(response) {
+                    displaySearchResults(response.results);
+                },
+                error: function(error) {
+                    console.log('Error:', error);
+                }
+            });
+        }
+
+        // Function to fetch popular movies
+        function fetchPopularMovies() {
+            $.ajax({
+                url: `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}`,
+                method: 'GET',
+                success: function(response) {
+                    displaySearchResults(response.results);
+                },
+                error: function(error) {
+                    console.log('Error:', error);
+                }
+            });
+        }
+
+        // Function to display search results
+        function displaySearchResults(results) {
+            $('#results-section').empty();
+            $('#details-section').empty();
+            
+            results.forEach(movie => {
+                const movieItem = $(`
+                    <div class="movie-item">
+                        <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}">
+                        <h3>${movie.title}</h3>
+                        <p>${movie.release_date}</p>
+                        <button class="details-button" data-id="${movie.id}">Details</button>
+                    </div>
+                `);
+                $('#results-section').append(movieItem);
+            });
+
+            // Details Button
+            $('.details-button').on('click', function() {
+                const movieId = $(this).data('id');
+                fetchMovieDetails(movieId);
+            });
+        }
+
+        // Function to fetch movie details
+        function fetchMovieDetails(movieId) {
+            $.ajax({
+                url: `https://api.themoviedb.org/3/movie/${movieId}?api_key=${apiKey}`,
+                method: 'GET',
+                success: function(response) {
+                    displayMovieDetails(response);
+                },
+                error: function(error) {
+                    console.log('Error:', error);
+                }
+            });
+        }
+
+        // Function to display movie details
+        function displayMovieDetails(movie) {
+            $('#details-section').empty();
+            
+            const movieDetails = $(`
+                <div class="movie-details">
+                    <img src="https://image.tmdb.org/t/p/w300${movie.poster_path}" alt="${movie.title}">
+                    <h2>${movie.title}</h2>
+                    <p><strong>Release Date:</strong> ${movie.release_date}</p>
+                    <p><strong>Overview:</strong> ${movie.overview}</p>
+                    <h3>Cast:</h3>
+                    <ul id="cast-list"></ul>
+                </div>
+            `);
+            $('#details-section').append(movieDetails);
+            fetchMovieCast(movie.id);
+        }
+
+        // Function to fetch movie cast
+        function fetchMovieCast(movieId) {
+            $.ajax({
+                url: `https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${apiKey}`,
+                method: 'GET',
+                success: function(response) {
+                    displayMovieCast(response.cast);
+                },
+                error: function(error) {
+                    console.log('Error:', error);
+                }
+            });
+        }
+
+        // Function to display movie cast
+        function displayMovieCast(cast) {
+            $('#cast-list').empty();
+            cast.slice(0, 10).forEach(member => {
+                const castItem = $(`<li>${member.name} as ${member.character}</li>`);
+                $('#cast-list').append(castItem);
+            });
+        }
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Movie Database SPA</h1>
+        <nav>
+            <button id="home-button">Home</button>
+            <button id="popular-button">Popular Movies</button>
+        </nav>
+    </header>
+    
+    <main>
+        <section id="search-section">
+            <input type="text" id="search-input" placeholder="Search for movies...">
+            <button id="search-button">Search</button>
+        </section>
+
+        <section id="results-section"></section>
+        <section id="details-section"></section>
+    </main>
+</body>
+</html>
