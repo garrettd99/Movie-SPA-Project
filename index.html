@@ -50,6 +50,13 @@
             cursor: pointer;
         }
 
+        .toggle-button, .sort-button, .filter-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
         .movie-item {
             display: inline-block;
             margin: 10px;
@@ -87,38 +94,132 @@
         #cast-list li {
             margin-bottom: 5px;
         }
+
+        .pagination {
+            margin: 20px 0;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        .list-view .movie-item {
+            display: block;
+            width: 100%;
+        }
+
+        .list-view .movie-item img {
+            float: left;
+            margin-right: 20px;
+            width: 100px;
+        }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         // API Key
         const apiKey = 'c308fed79563f78d7581b52b4dc8be3a';
+        let currentPage = 1;
+        let currentView = 'grid'; // 'grid' or 'list'
+        let currentSort = 'popularity.desc'; // Default sort by popularity descending
+        let currentFilter = ''; // No filter by default
 
         $(document).ready(function() {
-            // Search Button
+            // Handle search button click
             $('#search-button').on('click', function() {
                 const query = $('#search-input').val();
-                searchMovies(query);
+                searchMovies(query, currentPage);
             });
 
-            // Home Button
+            // Handle home button click
             $('#home-button').on('click', function() {
                 $('#results-section').empty();
                 $('#details-section').empty();
             });
 
-            // Popular Button
+            // Handle popular button click
             $('#popular-button').on('click', function() {
-                fetchPopularMovies();
+                fetchPopularMovies(currentPage);
+            });
+
+            // Handle view toggle buttons
+            $('#grid-view-button').on('click', function() {
+                currentView = 'grid';
+                $('.movie-item').removeClass('list-view').addClass('grid-view');
+            });
+
+            $('#list-view-button').on('click', function() {
+                currentView = 'list';
+                $('.movie-item').removeClass('grid-view').addClass('list-view');
+            });
+
+            // Handle sort buttons
+            $('#sort-popularity').on('click', function() {
+                currentSort = 'popularity.desc';
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
+            });
+
+            $('#sort-rating').on('click', function() {
+                currentSort = 'vote_average.desc';
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
+            });
+
+            // Handle filter buttons
+            $('#filter-action').on('click', function() {
+                currentFilter = '28';
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
+            });
+
+            $('#filter-comedy').on('click', function() {
+                currentFilter = '35';
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
+            });
+
+            $('#filter-reset').on('click', function() {
+                currentFilter = '';
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
             });
         });
 
         // Function to search movies based on query
-        function searchMovies(query) {
+        function searchMovies(query, page) {
+            let url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}&page=${page}&sort_by=${currentSort}`;
+            if (currentFilter) {
+                url += `&with_genres=${currentFilter}`;
+            }
             $.ajax({
-                url: `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}`,
+                url: url,
                 method: 'GET',
                 success: function(response) {
                     displaySearchResults(response.results);
+                    setupPagination(response.total_pages);
                 },
                 error: function(error) {
                     console.log('Error:', error);
@@ -127,12 +228,17 @@
         }
 
         // Function to fetch popular movies
-        function fetchPopularMovies() {
+        function fetchPopularMovies(page) {
+            let url = `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}&page=${page}&sort_by=${currentSort}`;
+            if (currentFilter) {
+                url += `&with_genres=${currentFilter}`;
+            }
             $.ajax({
-                url: `https://api.themoviedb.org/3/movie/popular?api_key=${apiKey}`,
+                url: url,
                 method: 'GET',
                 success: function(response) {
                     displaySearchResults(response.results);
+                    setupPagination(response.total_pages);
                 },
                 error: function(error) {
                     console.log('Error:', error);
@@ -147,7 +253,7 @@
             
             results.forEach(movie => {
                 const movieItem = $(`
-                    <div class="movie-item">
+                    <div class="movie-item ${currentView}-view">
                         <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}">
                         <h3>${movie.title}</h3>
                         <p>${movie.release_date}</p>
@@ -157,7 +263,7 @@
                 $('#results-section').append(movieItem);
             });
 
-            // Details Button
+            // Handle details button click
             $('.details-button').on('click', function() {
                 const movieId = $(this).data('id');
                 fetchMovieDetails(movieId);
@@ -218,6 +324,26 @@
                 $('#cast-list').append(castItem);
             });
         }
+
+        // Function to setup pagination
+        function setupPagination(totalPages) {
+            $('#pagination').empty();
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = $(`<button class="page-button" data-page="${i}">${i}</button>`);
+                $('#pagination').append(pageButton);
+            }
+
+            // Handle page button click
+            $('.page-button').on('click', function() {
+                currentPage = $(this).data('page');
+                const query = $('#search-input').val();
+                if (query) {
+                    searchMovies(query, currentPage);
+                } else {
+                    fetchPopularMovies(currentPage);
+                }
+            });
+        }
     </script>
 </head>
 <body>
@@ -226,6 +352,8 @@
         <nav>
             <button id="home-button">Home</button>
             <button id="popular-button">Popular Movies</button>
+            <button id="grid-view-button" class="toggle-button">Grid View</button>
+            <button id="list-view-button" class="toggle-button">List View</button>
         </nav>
     </header>
     
@@ -235,8 +363,20 @@
             <button id="search-button">Search</button>
         </section>
 
+        <section id="sort-section">
+            <button id="sort-popularity" class="sort-button">Sort by Popularity</button>
+            <button id="sort-rating" class="sort-button">Sort by Rating</button>
+        </section>
+
+        <section id="filter-section">
+            <button id="filter-action" class="filter-button">Filter Action</button>
+            <button id="filter-comedy" class="filter-button">Filter Comedy</button>
+            <button id="filter-reset" class="filter-button">Reset Filter</button>
+        </section>
+
         <section id="results-section"></section>
         <section id="details-section"></section>
+        <section id="pagination" class="pagination"></section>
     </main>
 </body>
 </html>
